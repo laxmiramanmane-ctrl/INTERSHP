@@ -1,0 +1,66 @@
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+require('dotenv').config();
+
+const app = express();
+app.use(express.json());
+app.use(cors());
+
+// Database Connection
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/quizdb';
+mongoose.connect(MONGO_URI)
+  .then(() => console.log('MongoDB successfully connected'))
+  .catch(err => console.error('Database connection error:', err));
+
+// Quiz Data Schema
+const quizSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: String,
+  questions: [
+    {
+      questionText: { type: String, required: true },
+      options: [{ type: String, required: true }],
+      correctAnswer: { type: String, required: true }
+    }
+  ]
+});
+
+const Quiz = mongoose.model('Quiz', quizSchema);
+
+// API Routes
+// 1. Create a New Quiz
+app.post('/api/quizzes', async (req, res) => {
+  try {
+    const { title, description, questions } = req.body;
+    const newQuiz = new Quiz({ title, description, questions });
+    await newQuiz.save();
+    res.status(201).json({ message: 'Quiz created successfully', quiz: newQuiz });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create quiz' });
+  }
+});
+
+// 2. Get All Available Quizzes
+app.get('/api/quizzes', async (req, res) => {
+  try {
+    const quizzes = await Quiz.find({}, 'title description');
+    res.status(200).json(quizzes);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch quizzes' });
+  }
+});
+
+// 3. Get Specific Quiz Details by ID
+app.get('/api/quizzes/:id', async (req, res) => {
+  try {
+    const quiz = await Quiz.findById(req.params.id);
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+    res.status(200).json(quiz);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch quiz details' });
+  }
+});
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
